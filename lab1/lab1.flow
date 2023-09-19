@@ -1,0 +1,19 @@
+import string;
+
+// arri2s(arr) -> string;
+
+
+main() {
+    arr = [1, 2, 3, 6, 7];
+    
+    println(arri2s(arr));
+    
+    quit(0);
+}
+
+arri2s(arr) {
+    strGlue(
+        map(arr, i2s),
+        "!!"
+    );
+}

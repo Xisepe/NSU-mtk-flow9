@@ -1,0 +1,15 @@
+import runtime;
+
+fib(n) {
+    if (n <= 1) [0]
+    else if (n == 2) [0, 1]
+    else {
+        f = fib(n-1);
+        concat(f, [f[n - 2] + f[n - 3]]);
+    }
+}
+
+main() {    
+    println(fib(-1));
+    quit(0);
+}

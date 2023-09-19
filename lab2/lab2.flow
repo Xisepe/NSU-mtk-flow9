@@ -1,0 +1,12 @@
+import string;
+
+main() {
+    arr = [1, 2, 3, 4];
+    println(arrsum(arr));
+
+    quit(0);
+}
+
+arrsum(arr) {
+    fold(arr, 0, \x,y -> x + y);
+}
