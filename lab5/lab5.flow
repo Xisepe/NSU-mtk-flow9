@@ -1,14 +1,6 @@
 import runtime;
 import lingo/pegcode/driver;
 
-// Expr ::= Sum;
-// Sum ::= Unit;
-// Add : (v1: Product, v2: Product);
-// Product ::= Unit;
-// Mult : (v1: Unit, v2 : Unit);
-// Unit ::= Int, Add, Mult;
-// Int : (val: int);
-
 Add : (v1: Unit, v2: Unit);
 Mult : (v1: Unit, v2 : Unit);
 Unit ::= Int, Add, Mult;
@@ -26,7 +18,13 @@ s2ast(s)-> Unit {
 _ast2s(ast: Unit, par)-> string {
     switch (ast) {
         Int(val): i2s(val);
-        Add(v1,v2): if (par) concatStrings(["(", _ast2s(v1,false), "+", _ast2s(v2,false), ")"]) else concatStrings([_ast2s(v1,false), "+", _ast2s(v2,false)]);
+        Add(v1,v2): {
+            arr = ast2s(v1)+ "+"+ ast2s(v2);
+            if(par) 
+                concatStrings(["(", arr, ")"])
+            else 
+                arr;
+        }
         Mult(v1,v2): concatStrings([_ast2s(v1,true), "*", _ast2s(v2,true)]);        
     }
 }
@@ -44,7 +42,8 @@ ast2i(ast) {
 }
 
 main() {
-    ast = s2ast("(1+2)*3+4*(3+4+5)");
+    ast = s2ast("(1+2)*3+4*(3+4*5)");
+    println(ast);
     println(ast2s(ast));
     println(ast2i(ast));
     quit(0);
