@@ -1,0 +1,123 @@
+import runtime;
+import ds/tree;
+import lingo/pegcode/driver;
+
+export {
+    Prog : (d: [Decl], expr: Unit);
+
+    Decl : (kv: [Pair<Var,Unit>]);
+    Unit ::= Int, Sub, Add, Div, Mult, Negative, Var;
+
+    Add : (v1: Unit, v2: Unit);
+    Sub : (v1: Unit, v2: Unit);
+    Mult : (v1: Unit, v2 : Unit);
+    Div : (v1: Unit, v2 : Unit);
+    Negative : (v: Unit);
+    Int : (val: int);
+    Var : (val: string);
+
+    buildSub(xs: [flow]) -> Sub;
+
+    buildDeclMap(d: [Decl]) -> Tree<string, Unit>;
+
+    s2infixAst(s : string) -> Prog;
+    // infixAst2s(ast : Unit) -> string;
+    _validateAst(ast: Unit, map: Tree<string, Unit>, flag: bool) -> bool;
+    infixast2d(ast: Unit, map: Tree<string, Unit>) -> Maybe<double>;
+}
+
+buildSub(xs) {
+    fold(xs[1], xs[0], \acc, x -> Sub(acc, x))
+}
+
+infixLingo : ref Maybe<[PegOp]> = ref None();
+
+s2infixAst(s)-> Prog {
+    specialPegActions = {
+        t = setTree(defaultPegActions.t, "buildSub", buildSub);
+        SemanticActions(t);
+    }
+    parsic(onlyOnce(infixLingo, \ -> {
+		compilePegGrammar("#include infix.lingo");
+	}), s, specialPegActions)
+}
+
+buildDeclMap(d) {
+    map: Tree<string, Unit> = makeTree();
+    if (length(d) == 0)
+        map
+    else {
+        fold(d[0].kv, map, \acc, e -> setTree(acc, e.first.val, e.second))
+    }
+}
+
+// _ast2s(ast: Unit, par)-> string {
+//     switch (ast) {
+//         Int(val): i2s(val);
+//         Add(v1,v2): {
+//             arr = infixAst2s(v1)+ "+"+ infixAst2s(v2);
+//             if(par) 
+//                 concatStrings(["(", arr, ")"])
+//             else 
+//                 arr;
+//         }
+//         Mult(v1,v2): concatStrings([_ast2s(v1,true), "*", _ast2s(v2,true)]);        
+//     }
+// }
+
+// infixAst2s(ast) {
+//     _ast2s(ast, false)
+// }
+
+validateAst(ast,map) {
+    _validateAst(ast,map,true)
+}
+
+_validateAst(ast, map, flag) {
+    if (!flag) {
+        false
+    } else {
+        validate = \v1,v2 -> validateAst(v1, map) && validateAst(v2, map);
+        switch (ast) {
+            Var(x) : isSome(lookupTree(map, x));
+            Int(v) : true;
+            Add(v1,v2) : validate(v1,v2);
+            Sub(v1,v2) : validate(v1,v2);
+            Mult(v1,v2) : validate(v1,v2);
+            Div(v1,v2): validate(v1,v2)
+            Negative(v) : validateAst(v, map);
+        }
+    }    
+}
+
+_infixast2d(ast: Unit, map)->double {
+    alias = \v -> _infixast2d(v, map);
+    switch(ast) {
+        Int(v) : i2d(v);
+        Var(x) : {
+            val = lookupTree(map, x);
+            eitherMap(val, alias, 0.0/*never reach here*/);
+        }
+        Negative(v): alias(v) * (-1.0);
+        Add(v1,v2): alias(v1) + alias(v2);
+        Sub(v1,v2): alias(v1) - alias(v2);
+        Mult(v1,v2): alias(v1) * alias(v2);
+        Div(v1,v2): alias(v1) / alias(v2);
+    }
+}
+
+infixast2d(ast, map) {
+    if (!validateAst(ast,map)) None() else Some(_infixast2d(ast, map))  
+}
+
+
+
+main() {
+    prog = s2infixAst("x=10;y=521/124;!\n-(10 - 12 + 13)*3 + 14*y");
+    println(prog);
+    ast = prog.expr;
+    decl = buildDeclMap(prog.d);
+    count = infixast2d(ast, decl);
+    println(count);
+    quit(0);
+}

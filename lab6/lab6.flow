@@ -1,0 +1,122 @@
+import runtime;
+import lingo/pegcode/driver;
+import ds/dlist;
+import arithmetic/infixast;
+
+
+RpnExpr ::= RpnOp, RpnInt;
+RpnOp ::= RpnAdd, RpnMult;
+RpnAdd : ();
+RpnMult : ();
+RpnInt : (val: int);
+
+RpnAstExpr ::= RpnAstAdd, RpnAstMult, RpnAstInt;
+RpnAstAdd : (v1 : RpnAstExpr, v2 : RpnAstExpr);
+RpnAstMult : (v1 : RpnAstExpr, v2 : RpnAstExpr);
+RpnAstInt : (val : int);
+
+
+// Singleton keeping the compiled grammar
+rpnLingo : ref Maybe<[PegOp]> = ref None();
+
+buildRpnAst(expr : [[RpnExpr]])-> Maybe<RpnAstExpr>{
+    e = expr[0];
+    stack: DList<RpnAstExpr> = makeDList();
+    fold(e, true, \flag, exp-> {
+        if (!flag) {
+            flag
+        } else {
+            performOpIfPossible = \s, op -> {
+                v2 = popDList(s);
+                v1 = popDList(s);
+                cont = isSome(v1) && isSome(v2);
+                if (cont) {
+                    a : RpnAstExpr = v1 ?? v1 : RpnAstInt(0);
+                    b : RpnAstExpr = v2 ?? v2 : RpnAstInt(0);
+                    switch (op) {
+                        RpnAdd() : {
+                            pushDList(s, RpnAstAdd(a, b))
+                        }
+                        RpnMult() : {
+                            pushDList(s, RpnAstMult(a, b))
+                        }
+                    };
+                    true
+                } else false
+            }
+            switch (exp) {
+                RpnInt(val) : {
+                    pushDList(stack, RpnAstInt(val));
+                    true
+                }
+                RpnAdd() : {
+                    performOpIfPossible(stack, RpnAdd())
+                }
+                RpnMult() : {
+                    performOpIfPossible(stack, RpnMult())
+                }
+            }
+        }
+    });
+    popDList(stack)
+}
+
+s2rpnAst(s)-> Maybe<RpnAstExpr> {
+    specialPegAction = {
+        t = setTree(defaultPegActions.t, "buildRpnAst", buildRpnAst
+    );
+        SemanticActions(t);
+    }
+    parsic(onlyOnce(rpnLingo, \ -> {
+		compilePegGrammar("#include C:\nsu-courses\translation-compilation\lab6\rpn.lingo");
+	}), s, specialPegAction);
+}
+
+rpnAst2i(ast) {
+    switch(ast) {
+        RpnAstInt(v) : v;
+        RpnAstAdd(v1,v2): rpnAst2i(v1) + rpnAst2i(v2);
+        RpnAstMult(v1,v2): rpnAst2i(v1) * rpnAst2i(v2);
+    }
+}
+
+_rpnAst2infixS(ast: RpnAstExpr, par)-> string {
+    switch (ast) {
+        RpnAstInt(val): i2s(val);
+        RpnAstAdd(v1,v2): {
+            arr = rpnAst2infixS(v1)+ "+"+ rpnAst2infixS(v2);
+            if(par) 
+                concatStrings(["(", arr, ")"])
+            else 
+                arr;
+        }
+        RpnAstMult(v1,v2): concatStrings([_rpnAst2infixS(v1,true), "*", _rpnAst2infixS(v2,true)]);        
+    }
+}
+
+rpnAst2infixS(ast) {
+    _rpnAst2infixS(ast, false)
+}
+
+infixS2rpnS(s) {
+    infixAst2rpnS(s2infixAst(s))
+}
+
+infixAst2rpnS(ast) {
+    switch (ast) {
+        InfixInt(val): i2s(val);
+        InfixAdd(v1,v2): infixAst2rpnS(v1) + " " + infixAst2rpnS(v2) + "+";
+        InfixMult(v1,v2): infixAst2rpnS(v1) + " " + infixAst2rpnS(v2) + "*";       
+    }
+}
+
+main() {
+    ast = s2rpnAst("345 25+10*");
+    ast ?? println(rpnAst2i(ast)) : println("error");
+    ast ?? println(rpnAst2infixS(ast)) : println("error");
+    rpns = infixS2rpnS("4*(3*5+10) + 11");
+    println(rpns);
+    rpnast = s2rpnAst(rpns);
+    println(rpnast ?? rpnAst2infixS(rpnast) : "error");
+    quit(0);
+}

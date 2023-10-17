@@ -1,0 +1,14 @@
+
+exp = ws (int | operation)+:e {buildRpnAst(:e)};
+
+operation = (add | mult):op ws {:op};
+
+add = '+' {RpnAdd()};
+mult = '*' {RpnMult()};
+
+int = digit+$d ws {RpnInt(s2i($d))};
+
+digit = '0' - '9';
+
+ws = s*;
+s = " " | "\t" | "\n";

@@ -1,0 +1,9 @@
+expr = ws sum:s {:s};
+sum = product:p1 "+" ws sum:p2 {InfixAdd(:p1, :p2)} | product:p {:p};
+product = unit:i1 "*" ws product:i2 {InfixMult(:i1, :i2)} | unit:i {:i};
+unit = digit+$d ws {InfixInt(s2i($d))} | '(' expr:e ')' ws {:e};
+
+digit = '0' - '9';
+
+ws = s*;
+s = " " | "\t" | "\n";
