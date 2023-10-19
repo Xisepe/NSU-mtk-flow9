@@ -17,17 +17,31 @@ export {
     Var : (val: string);
 
     buildSub(xs: [flow]) -> Sub;
-
+    buildDiv(xs: [flow]) -> Div;
     buildDeclMap(d: [Decl]) -> Tree<string, Unit>;
 
     s2infixAst(s : string) -> Prog;
-    // infixAst2s(ast : Unit) -> string;
-    _validateAst(ast: Unit, map: Tree<string, Unit>, flag: bool) -> bool;
-    infixast2d(ast: Unit, map: Tree<string, Unit>) -> Maybe<double>;
+    infixAst2s(ast : Unit) -> string;
+
+    Rational: (num: int, denom: int);
+    addRational(r1: Rational, r2: Rational) -> Rational;
+    subRational(r1: Rational, r2: Rational) -> Rational;
+    multRational(r1: Rational, r2: Rational) -> Rational;
+    divRational(r1: Rational, r2: Rational) -> Rational;
+    negateRational(r: Rational) -> Rational;
+    simplifyRational(r: Rational) -> Rational;
+    validateRational(r: Rational) -> Maybe<Rational>;
+    i2r(v: int) -> Rational;
+
+    ast2mr(ast: Unit, map: Tree<string, Unit>) -> Maybe<Rational>;
 }
 
 buildSub(xs) {
     fold(xs[1], xs[0], \acc, x -> Sub(acc, x))
+}
+
+buildDiv(xs) {
+    fold(xs[1], xs[0], \acc, x -> Div(acc, x))
 }
 
 infixLingo : ref Maybe<[PegOp]> = ref None();
@@ -35,7 +49,8 @@ infixLingo : ref Maybe<[PegOp]> = ref None();
 s2infixAst(s)-> Prog {
     specialPegActions = {
         t = setTree(defaultPegActions.t, "buildSub", buildSub);
-        SemanticActions(t);
+        t1 = setTree(defaultPegActions.t, "buildDiv", buildDiv);
+        SemanticActions(t1);
     }
     parsic(onlyOnce(infixLingo, \ -> {
 		compilePegGrammar("#include infix.lingo");
@@ -51,73 +66,100 @@ buildDeclMap(d) {
     }
 }
 
-// _ast2s(ast: Unit, par)-> string {
-//     switch (ast) {
-//         Int(val): i2s(val);
-//         Add(v1,v2): {
-//             arr = infixAst2s(v1)+ "+"+ infixAst2s(v2);
-//             if(par) 
-//                 concatStrings(["(", arr, ")"])
-//             else 
-//                 arr;
-//         }
-//         Mult(v1,v2): concatStrings([_ast2s(v1,true), "*", _ast2s(v2,true)]);        
-//     }
-// }
-
-// infixAst2s(ast) {
-//     _ast2s(ast, false)
-// }
-
-validateAst(ast,map) {
-    _validateAst(ast,map,true)
-}
-
-_validateAst(ast, map, flag) {
-    if (!flag) {
-        false
-    } else {
-        validate = \v1,v2 -> validateAst(v1, map) && validateAst(v2, map);
-        switch (ast) {
-            Var(x) : isSome(lookupTree(map, x));
-            Int(v) : true;
-            Add(v1,v2) : validate(v1,v2);
-            Sub(v1,v2) : validate(v1,v2);
-            Mult(v1,v2) : validate(v1,v2);
-            Div(v1,v2): validate(v1,v2)
-            Negative(v) : validateAst(v, map);
+_ast2s(ast: Unit, par)-> string {
+    switch (ast) {
+        Int(val): i2s(val);
+        Var(v): v;
+        Negative(v): "-" + _ast2s(v, true);
+        Add(v1,v2): {
+            arr = infixAst2s(v1)+ "+"+ infixAst2s(v2);
+            if(par) 
+                concatStrings(["(", arr, ")"])
+            else 
+                arr;
         }
-    }    
-}
-
-_infixast2d(ast: Unit, map)->double {
-    alias = \v -> _infixast2d(v, map);
-    switch(ast) {
-        Int(v) : i2d(v);
-        Var(x) : {
-            val = lookupTree(map, x);
-            eitherMap(val, alias, 0.0/*never reach here*/);
+        Sub(v1,v2): {
+            arr = infixAst2s(v1)+ "-"+ infixAst2s(v2);
+            if(par) 
+                concatStrings(["(", arr, ")"])
+            else 
+                arr;
         }
-        Negative(v): alias(v) * (-1.0);
-        Add(v1,v2): alias(v1) + alias(v2);
-        Sub(v1,v2): alias(v1) - alias(v2);
-        Mult(v1,v2): alias(v1) * alias(v2);
-        Div(v1,v2): alias(v1) / alias(v2);
+        Mult(v1,v2): concatStrings([_ast2s(v1,true), "*", _ast2s(v2,true)]);
+        Div(v1,v2): concatStrings([_ast2s(v1,true), "/", _ast2s(v2,true)]);       
     }
 }
 
-infixast2d(ast, map) {
-    if (!validateAst(ast,map)) None() else Some(_infixast2d(ast, map))  
+infixAst2s(ast) {
+    _ast2s(ast, false)
 }
 
+addRational(r1,r2) {
+    simplifyRational(Rational(r1.num * r2.denom + r2.num * r1.denom, r1.denom * r2.denom))
+}
 
+subRational(r1,r2) {
+    simplifyRational(Rational(r1.num * r2.denom - r2.num * r1.denom, r1.denom * r2.denom))
+}
+
+multRational(r1,r2) {
+    simplifyRational(Rational(r1.num * r2.num, r1.denom * r2.denom))
+}
+
+divRational(r1,r2) {
+    simplifyRational(Rational(r1.num * r2.denom, r1.denom * r2.num))
+}
+
+simplifyRational(r) {
+    gcd = \a:int, b:int -> if (b == 0) a else gcd(b, a % b);
+    div = gcd(r.num, r.denom);
+    if (div != 0) {
+        Rational(r.num / div, r.denom / div)
+    } else r
+}
+
+validateRational(r) {
+    if (r.denom == 0) {
+        None()
+    } else Some(r)
+}
+
+i2r(v) {
+    Rational(v,1)
+}
+
+negateRational(r) {
+    Rational(-r.num, r.denom)
+}
+
+ast2mr(ast, map) {
+    maybeBind(_ast2mr(ast,map),validateRational)
+}
+_ast2mr(ast, map){
+    _self = \e -> maybeBind(_ast2mr(e,map), validateRational);
+    _map = \fn,v1,v2 -> maybeMap2(fn)(_self(v1), _self(v2));
+    switch(ast) {
+        Int(v): Some(i2r(v));
+        Var(v): {
+            val = lookupTree(map, v);
+            maybeBind(val, _self)
+        }
+        Negative(v): maybeMap(_self(v), negateRational);
+        Add(v1,v2): _map(addRational,v1,v2);
+        Sub(v1,v2): _map(subRational,v1,v2);
+        Mult(v1,v2): _map(multRational,v1,v2);
+        Div(v1,v2): _map(divRational,v1,v2);
+    }
+}
 
 main() {
-    prog = s2infixAst("x=10;y=521/124;!\n-(10 - 12 + 13)*3 + 14*y");
-    println(prog);
-    ast = prog.expr;
+    prog = s2infixAst("x=10;y=521/124;!\n-35/7/8");
+
+    ast = prog.expr;    
     decl = buildDeclMap(prog.d);
-    count = infixast2d(ast, decl);
-    println(count);
+
+    res = ast2mr(ast, decl);
+    println(res);
+
     quit(0);
 }
