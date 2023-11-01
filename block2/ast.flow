@@ -1,0 +1,88 @@
+import runtime;
+import ds/tree;
+import lingo/pegcode/driver;
+
+export {
+    Prog : (d: [Decl], expr: Unit);
+
+    Decl : (kv: [Pair<Var,Unit>]);
+    Unit ::= Int, Sub, Add, Div, Mult, Negative, Var;
+
+    Add : (v1: Unit, v2: Unit);
+    Sub : (v1: Unit, v2: Unit);
+    Mult : (v1: Unit, v2 : Unit);
+    Div : (v1: Unit, v2 : Unit);
+    Negative : (v: Unit);
+    Int : (val: int);
+    Var : (val: string);
+
+    buildSub(xs: [flow]) -> Sub;
+    buildDiv(xs: [flow]) -> Div;
+    buildDeclMap(d: [Decl]) -> Tree<string, Unit>;
+
+    s2ast(s : string) -> Prog;
+    ast2s(ast : Unit) -> string;
+}
+
+buildSub(xs) {
+    fold(xs[1], xs[0], \acc, x -> Sub(acc, x))
+}
+
+buildDiv(xs) {
+    fold(xs[1], xs[0], \acc, x -> Div(acc, x))
+}
+
+expressionLingo : ref Maybe<[PegOp]> = ref None();
+
+s2ast(s)-> Prog {
+    parsic(
+        onlyOnce(
+            expressionLingo, \ -> {
+		compilePegGrammar("#include expression.lingo");
+	    }),
+        s,
+        pegActions(
+            [
+                Pair("buildSub", buildSub),
+                Pair("buildDiv", buildDiv)
+            ]
+            )
+        )
+}
+
+buildDeclMap(d) {
+    map: Tree<string, Unit> = makeTree();
+    if (length(d) == 0)
+        map
+    else {
+        fold(d[0].kv, map, \acc, e -> setTree(acc, e.first.val, e.second))
+    }
+}
+
+_ast2s(ast: Unit, par)-> string {
+    switch (ast) {
+        Int(val): i2s(val);
+        Var(v): v;
+        Negative(v): "-" + _ast2s(v, true);
+        Add(v1,v2): {
+            arr = ast2s(v1)+ "+"+ ast2s(v2);
+            if(par) 
+                concatStrings(["(", arr, ")"])
+            else 
+                arr;
+        }
+        Sub(v1,v2): {
+            arr = ast2s(v1)+ "-"+ ast2s(v2);
+            if(par) 
+                concatStrings(["(", arr, ")"])
+            else 
+                arr;
+        }
+        Mult(v1,v2): concatStrings([_ast2s(v1,true), "*", _ast2s(v2,true)]);
+        Div(v1,v2): concatStrings([_ast2s(v1,true), "/", _ast2s(v2,true)]);       
+    }
+}
+
+ast2s(ast) {
+    _ast2s(ast, false)
+}

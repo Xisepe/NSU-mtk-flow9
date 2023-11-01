@@ -1,0 +1,153 @@
+import ast;
+import ds/set;
+import dynamic;
+
+export {
+    SRule : (term: Unit, substitude: Unit);
+    Rules : (r: Set<SRule>);
+    Match : (subs: Tree<string, Unit>);
+
+    
+
+    addRule(rules: Rules, r: SRule) -> Rules;
+    buildMatchedTerm(r: SRule, m: Match) -> Unit;
+    match(ex: Unit, pattern: Unit) -> Maybe<Match>;
+    simplifyByRules(expr: Unit, r: Rules) -> Unit;
+}
+
+BiOp ::= Add, Mult, Sub, Div;
+
+_buildUnassociative(a, b, struct: (Unit, Unit)->BiOp) ->[BiOp] {
+    aa = _buildAllAssociativityVariants(a);
+    bb = _buildAllAssociativityVariants(b);
+    mapConcat(aa, \e -> map(
+        bb,
+        \ei-> struct(e, ei)
+    ));
+}
+
+_buildAssociative(a, b, struct: (Unit, Unit) -> BiOp) -> [BiOp] {
+    c1 = _buildUnassociative(a,b,struct);
+    if (a != b) {
+        concat(
+            c1,
+            map(c1, \e-> struct(e.v2, e.v1))
+            )
+    } else {
+        c1
+    }    
+}
+
+_buildAllAssociativityVariants(term: Unit) -> [Unit] {
+    switch (term) {
+        Int(v): [Int(v)];
+        Var(x): [Var(x)];
+        Negative(v): map(_buildAllAssociativityVariants(v), \e->Negative(e));
+        Add(a,b): _buildAssociative(a, b, \v1,v2 -> Add(v1,v2));
+        Sub(a,b): _buildUnassociative(a, b, \v1,v2 -> Sub(v1,v2));
+        Mult(a,b): _buildAssociative(a, b, \v1,v2 -> Mult(v1,v2));
+        Div(a,b): _buildUnassociative(a, b, \v1,v2 -> Add(v1,v2));
+    }
+}
+
+addRule(rules: Rules, r: SRule) -> Rules {
+    arr = fold(
+        map(_buildAllAssociativityVariants(r.term), \e-> SRule(e, r.substitude)),
+        [],
+        \acc: [SRule], e: SRule -> if (e.term == e.substitude) acc else arrayPush(acc, e)
+    );
+    Rules(mergeSets(rules.r, buildSet(arr)))
+}
+
+_buildMatchedTerm(e: Unit, t: Tree<string, Unit>) {
+    self = \v->_buildMatchedTerm(v, t);
+    switch (e) {
+        Int(v): Int(v);
+        Var(x): either(lookupTree(t, x), Var(x));
+        Negative(v): Negative(self(v));
+        Add(a,b): Add(self(a),self(b));
+        Mult(a,b): Mult(self(a),self(b));
+        Div(a,b): Div(self(a),self(b));
+        Sub(a,b): Sub(self(a),self(b));
+    }
+}
+
+buildMatchedTerm(r: SRule, m: Match) -> Unit {
+    _buildMatchedTerm(r.substitude, m.subs);
+}
+
+_biMatch(ex: Unit, pattern: Unit) {
+    if (isSameStructType(pattern, ex)) {
+        p = cast(pattern: Unit -> BiOp);
+        e = cast(ex : Unit -> BiOp);
+        l = _match(e.v1, p.v1);
+        r = _match(e.v2, p.v2);
+        maybeBind2(\a,b-> {
+            flag = isEmptyTree(filterTree(a, \k,v-> eitherFn(lookupTree(b, k), \val->val!=v, \->false)));
+            if (flag) {
+                Some(mergeTree(a,b))
+            } else None()
+        })(l,r)
+    } else {
+        None()
+    }     
+}
+
+_match(ex: Unit, pattern: Unit) -> Maybe<Tree<string, Unit>> {
+    switch(pattern) {
+        Int(v): if (pattern == ex) Some(makeTree()) else None();
+        Var(x): Some(makeTree1(x, ex));
+        Negative(v): {
+            if (isSameStructType(pattern, ex)) {
+                _match(ex.v, v)
+            } else {
+                None();
+            }
+        }
+        Add(a,b): _biMatch(ex, pattern);
+        Sub(a,b): _biMatch(ex, pattern);
+        Mult(a,b): _biMatch(ex, pattern);
+        Div(a,b): _biMatch(ex, pattern);
+    }    
+}
+
+match(ex: Unit, pattern: Unit) -> Maybe<Match> {
+    maybeMap(_match(ex,pattern), \t-> Match(t))
+}
+
+applyFirstSuccessRule(expr: Unit, r: Rules) -> Unit {
+    acc: Maybe<Unit> = None();
+    either(foldSet(
+        r.r,
+        acc,
+        \holder, e-> {
+            eitherFn(
+                holder,
+                \ida->Some(idfn(ida)),
+                \-> {
+                    maybeMap(match(expr, e.term), \m->buildMatchedTerm(e, m))
+                }
+            )
+        }
+    ), expr)   
+}
+
+simplifyByRules(expr: Unit, r: Rules) -> Unit {
+    biSelf = \a,b,struct: (Unit, Unit)->Unit -> {
+        aa = simplifyByRules(a,r);
+        bb = simplifyByRules(b,r);
+        applyFirstSuccessRule(struct(aa,bb), r);
+    }
+    switch(expr) {
+        Int(v): applyFirstSuccessRule(expr, r);
+        Var(x): applyFirstSuccessRule(expr, r);
+        Negative(v): {
+            vv = simplifyByRules(v,r);
+            applyFirstSuccessRule(vv, r);
+        }
+        Add(a,b): biSelf(a,b, \v1,v2->Add(v1,v2));
+        Sub(a,b): biSelf(a,b, \v1,v2->Sub(v1,v2));
+        Mult(a,b): biSelf(a,b, \v1,v2->Mult(v1,v2));
+        Div(a,b): biSelf(a,b, \v1,v2->Div(v1,v2));
+    }
+}

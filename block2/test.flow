@@ -1,0 +1,16 @@
+import simplifier;
+
+
+main() {
+    pattern = Mult(Int(0), Var("a"));
+    pattern2 = Mult(Int(1), Var("a"));
+
+    subs = Int(0);
+    expr = Mult(Mult(Int(1),Int(2)), Int(0));
+    rule = SRule(pattern, subs);
+
+    r = addRule(Rules(makeSet()), rule);
+
+    println(simplifyByRules(expr,r));
+    quit(0);
+}

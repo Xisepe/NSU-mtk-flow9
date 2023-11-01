@@ -1,0 +1,180 @@
+import ast;
+
+export {
+    //map of var:pow
+    PTerm : (t: Tree<string, int>);
+    Polynomial : (e : Tree<PTerm, int>);
+    RationalPoly : (p1 : Polynomial, p2 : Polynomial);
+
+    buildConstantTerm() -> PTerm;
+    buildTerm1(k: string, v: int) -> PTerm;
+    buildPoly1(t: PTerm, v: int) -> Polynomial;
+    buildConstantPoly(v: int) -> Polynomial;
+    
+    addPolynomial(p1: Polynomial, p2: Polynomial)->Polynomial;
+    subPolynomial(p1: Polynomial, p2: Polynomial)->Polynomial;
+    multPolynomial(p1: Polynomial, p2: Polynomial)->Polynomial;
+    negatePolynomial(t: Polynomial) -> Polynomial;
+
+    ast2rp(e: Unit) -> RationalPoly;
+
+    t2s(t: PTerm) -> string;
+    p2s(p: Polynomial) -> string;
+    rp2s(rp: RationalPoly) -> string;
+}
+
+treeMergeFn(t1: Tree<?, ??>, t2: Tree<?, ??>, fn: (??, ??) -> ??) -> Tree<?,??> {
+    mergeTreeCustom(t1,t2,\k,v1,v2-> fn(v1,v2))
+}
+
+buildPolynomialFn(p1: Polynomial, p2: Polynomial, fn: (int, int) -> int) {
+    Polynomial(treeMergeFn(p1.e, p2.e, fn))
+}
+
+negatePolynomial(t: Polynomial) {
+    Polynomial(
+        mapTree(
+            t.e,
+            \v -> -v
+        )
+    )
+}
+
+multTerm(t1: PTerm, t2: PTerm) {
+    PTerm(treeMergeFn(t1.t, t2.t, \a,b -> a + b))
+}
+
+addPolynomial(p1: Polynomial, p2: Polynomial) {
+    buildPolynomialFn(p1, p2,\a, b -> a + b)
+}
+
+subPolynomial(p1: Polynomial, p2: Polynomial) {
+    buildPolynomialFn(p1, p2, \a, b -> a - b)
+}
+
+multPolynomial(p1: Polynomial, p2: Polynomial) {
+    Polynomial(
+        foldTree(
+            p1.e,
+            makeTree(),
+            \k,v,acc -> {
+                mergeTreeCustom(
+                    acc,
+                    foldTree(
+                        p2.e,
+                        makeTree(),
+                        \ki, vi, acci -> {
+                            setTree(acci, multTerm(k, ki), v * vi)
+                        }
+                    ),
+                    \kj, v1, v2 -> v1 + v2
+                )
+            }
+        )
+    )
+}
+
+buildConstantTerm() {
+    PTerm(makeTree())
+}
+
+buildTerm1(k: string, v: int) {
+    PTerm(makeTree1(k, v))
+}
+
+buildPoly1(t: PTerm, v: int) {
+    Polynomial(makeTree1(t, v))
+}
+
+buildConstantPoly(v: int) {
+    buildPoly1(buildConstantTerm(), v)
+}
+
+ast2rp(e: Unit) -> RationalPoly {
+    switch(e) {
+        Int(v): {
+            RationalPoly(
+                buildConstantPoly(v),
+                buildConstantPoly(1)
+            )
+        }
+        Var(x): {
+            RationalPoly(
+                buildPoly1(buildTerm1(x, 1), 1),
+                buildConstantPoly(1)
+            )
+        }
+        Negative(v): {
+            r = ast2rp(v);
+            RationalPoly(
+                negatePolynomial(r.p1),
+                r.p2
+            )         
+        }
+        Add(v1,v2): {
+            l = ast2rp(v1);
+            r = ast2rp(v2);
+            RationalPoly(
+                addPolynomial(
+                    multPolynomial(l.p1, r.p2),
+                    multPolynomial(r.p1, l.p2)
+                ),
+                multPolynomial(l.p2, r.p2)
+            )
+        }
+        Sub(v1,v2): {
+            l = ast2rp(v1);
+            r = ast2rp(v2);
+            RationalPoly(
+                subPolynomial(
+                    multPolynomial(l.p1, r.p2),
+                    multPolynomial(r.p1, l.p2)
+                ),
+                multPolynomial(l.p2, r.p2)
+            )
+        }
+        Mult(v1,v2): {
+            l = ast2rp(v1);
+            r = ast2rp(v2);
+            RationalPoly(
+                multPolynomial(l.p1,r.p1),
+                multPolynomial(l.p2,r.p2)
+            )
+        }
+        Div(v1,v2): {
+            l = ast2rp(v1);
+            r = ast2rp(v2);
+            RationalPoly(
+                multPolynomial(l.p1,r.p2),
+                multPolynomial(l.p2,r.p1)
+            )           
+        }
+    }
+}
+
+t2s(t: PTerm) {
+    foldTree(
+        t.t,
+        "",
+        \k, v, acc -> {
+            acc + k + "^" + i2s(v)
+        }
+    )
+}
+
+p2s(p: Polynomial) {
+    rtrim2(foldTree(
+        p.e,
+        "",
+        \k,v,acc -> {
+            acc + i2s(v) + t2s(k) + " + "
+        }
+    ), "+ ")
+}
+
+rp2s(rp: RationalPoly) {
+    num = p2s(rp.p1);
+    denom = p2s(rp.p2);
+    divstr = strRepeat("-", max(strlen(num), strlen(denom)));
+    num + "\n" + divstr + "\n" + denom
+}

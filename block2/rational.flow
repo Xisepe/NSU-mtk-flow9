@@ -1,0 +1,77 @@
+import ast;
+
+export {
+    Rational: (num: int, denom: int);
+    addRational(r1: Rational, r2: Rational) -> Rational;
+    subRational(r1: Rational, r2: Rational) -> Rational;
+    multRational(r1: Rational, r2: Rational) -> Rational;
+    divRational(r1: Rational, r2: Rational) -> Rational;
+    negateRational(r: Rational) -> Rational;
+    simplifyRational(r: Rational) -> Rational;
+    validateRational(r: Rational) -> Maybe<Rational>;
+    i2r(v: int) -> Rational;
+
+    ast2mr(ast: Unit, map: Tree<string, Unit>) -> Maybe<Rational>;
+}
+
+addRational(r1,r2) {
+    simplifyRational(Rational(r1.num * r2.denom + r2.num * r1.denom, r1.denom * r2.denom))
+}
+
+subRational(r1,r2) {
+    simplifyRational(Rational(r1.num * r2.denom - r2.num * r1.denom, r1.denom * r2.denom))
+}
+
+multRational(r1,r2) {
+    simplifyRational(Rational(r1.num * r2.num, r1.denom * r2.denom))
+}
+
+divRational(r1,r2) {
+    simplifyRational(Rational(r1.num * r2.denom, r1.denom * r2.num))
+}
+
+simplifyRational(r) {
+    gcd = \a:int, b:int -> if (b == 0) a else gcd(b, a % b);
+    div = gcd(r.num, r.denom);
+    if (div != 0) {
+        Rational(r.num / div, r.denom / div)
+    } else r
+}
+
+validateRational(r) {
+    if (r.denom == 0) {
+        None()
+    } else Some(r)
+}
+
+i2r(v) {
+    Rational(v,1)
+}
+
+negateRational(r) {
+    Rational(-r.num, r.denom)
+}
+
+ast2mr(ast, map) {
+    maybeBind(_ast2mr(ast,map),validateRational)
+}
+_ast2mr(ast, map){
+    _self = \e -> maybeBind(_ast2mr(e,map), validateRational);
+    _map = \fn,v1,v2 -> maybeMap2(fn)(_self(v1), _self(v2));
+    switch(ast) {
+        Int(v): Some(i2r(v));
+        Var(v): {
+            val = lookupTree(map, v);
+            maybeBind(val, _self)
+        }
+        Negative(v): maybeMap(_self(v), negateRational);
+        Add(v1,v2): _map(addRational,v1,v2);
+        Sub(v1,v2): _map(subRational,v1,v2);
+        Mult(v1,v2): _map(multRational,v1,v2);
+        Div(v1,v2): _map(divRational,v1,v2);
+    }
+}
+
+mr2s(res) {
+    maybeMap(res, \r -> i2s(r.num) + "/" + i2s(r.denom))
+}

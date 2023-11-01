@@ -1,0 +1,154 @@
+import ast;
+
+export {
+    buildDerativeTree(ast: Unit, var: string) -> Unit;
+    simplify(ast: Unit) -> Unit;
+}
+
+isInt(unit: Unit) -> Maybe<Int> {
+    switch(unit) {
+        Int(v): Some(Int(v));
+        Var(x): None();
+        Add(a,b): None();
+        Sub(a,b): None();
+        Mult(a,b): None();
+        Div(a,b): None();
+        Negative(v): None();
+    }
+}
+
+isNegative(unit: Unit) -> Maybe<Unit> {
+    switch(unit) {
+        Int(v): None();
+        Var(x): None();
+        Add(a,b): None();
+        Sub(a,b): None();
+        Mult(a,b): None();
+        Div(a,b): None();
+        Negative(v): Some(v);
+    }
+}
+
+isZero(v: Int) {
+    v == Int(0)
+}
+
+simplifyAdd(a: Unit, b: Unit) {
+    v1 = Pair(eitherMap(isInt(a), isZero, false), b);
+    v2 = Pair(eitherMap(isInt(b), isZero, false), a);
+    if (v1.first && v2.first) {
+        Int(0)
+    } else {
+        if (v1.first) {
+            v1.second
+        } else {
+            if (v2.first) {
+                v2.second
+            } else {
+                Add(a, b)
+            }
+        }
+    } 
+}
+
+simplifySub(a: Unit, b: Unit) {
+    v1 = Pair(eitherMap(isInt(a), isZero, false), b);
+    v2 = Pair(eitherMap(isInt(b), isZero, false), a);
+    if (v1.first && v2.first) {
+        Int(0)
+    } else {
+        if (v1.first) {
+            Negative(v1.second)
+        } else {
+            if (v2.first) {
+                v2.second
+            } else {
+                Sub(a, b)
+            }
+        }
+    }
+}
+
+simplifyMult(a: Unit, b: Unit) {
+    v1 = eitherMap(isInt(a), isZero, false);
+    v2 = eitherMap(isInt(b), isZero, false);
+    if (v1 || v2) {
+        Int(0)
+    } else {
+        vv1 = Pair(eitherMap(isInt(a), \v->v==Int(1), false), b);
+        vv2 = Pair(eitherMap(isInt(b), \v->v==Int(1), false), a);
+        if (vv1.first && vv2.first) {
+            Int(1)
+        } else {
+            if (vv1.first) {
+                vv1.second
+            } else {
+                if (vv2.first) {
+                    vv2.second
+                } else {
+                    Mult(a, b)
+                }
+            }
+        }                 
+    }
+}
+
+simplifyDiv(a: Unit, b: Unit) {
+    v1 = eitherMap(isInt(a), isZero, false);
+    v2 = eitherMap(isInt(b), isZero, false);
+    if (v1 && !v2) {
+        Int(0)
+    } else {
+        vv2 = Pair(eitherMap(isInt(b), \v->v==Int(1), false), a);
+        if (vv2.first) {
+            vv2.second
+        } else {
+            if (a == b) {
+                Int(1)
+            } else {
+                Div(a,b)
+            }
+        }                 
+    }     
+}
+
+simplifyNegative(v: Unit) {
+    v1 = Pair(eitherMap(isInt(v), isZero, false), v);
+    if (v1.first) {
+        Int(0)
+    } else {
+        eitherMap(isNegative(v), idfn, Negative(v))
+    }
+}
+
+simplify(ast: Unit) -> Unit{
+    switch(ast) {
+        Int(v): Int(v);
+        Var(x): Var(x);
+        Add(a,b): simplifyAdd(simplify(a),simplify(b));
+        Sub(a,b): simplifySub(simplify(a),simplify(b));
+        Mult(a,b): simplifyMult(simplify(a),simplify(b));
+        Div(a,b): simplifyDiv(simplify(a),simplify(b));
+        Negative(v): simplifyNegative(simplify(v));
+    }    
+}
+
+buildDerativeTree(ast, var) {
+    simplify(
+        switch (ast) {
+        Int(v): Int(0);
+        Var(v): if (v == var) Int(1) else Int(0)
+        Negative(v): Negative(buildDerativeTree(v,var));
+        Add(v1,v2): Add(buildDerativeTree(v1,var),buildDerativeTree(v2,var));
+        Sub(v1,v2): Sub(buildDerativeTree(v1,var),buildDerativeTree(v2,var));
+        Mult(v1,v2): Add(
+            Mult(buildDerativeTree(v1,var),v2),
+            Mult(v1,buildDerativeTree(v2,var))
+        );
+        Div(v1,v2): Div (
+            Sub(Mult(buildDerativeTree(v1,var),v2), Mult(v1, buildDerativeTree(v2,var))),
+            Mult(v2,v2)
+        )
+        }
+    )
+}
