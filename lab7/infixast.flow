@@ -47,14 +47,19 @@ buildDiv(xs) {
 infixLingo : ref Maybe<[PegOp]> = ref None();
 
 s2infixAst(s)-> Prog {
-    specialPegActions = {
-        t = setTree(defaultPegActions.t, "buildSub", buildSub);
-        t1 = setTree(defaultPegActions.t, "buildDiv", buildDiv);
-        SemanticActions(t1);
-    }
-    parsic(onlyOnce(infixLingo, \ -> {
+    parsic(
+        onlyOnce(
+            infixLingo, \ -> {
 		compilePegGrammar("#include infix.lingo");
-	}), s, specialPegActions)
+	    }),
+        s,
+        pegActions(
+            [
+                Pair("buildSub", buildSub),
+                Pair("buildDiv", buildDiv)
+            ]
+            )
+        )
 }
 
 buildDeclMap(d) {
@@ -152,14 +157,18 @@ _ast2mr(ast, map){
     }
 }
 
+mr2s(res) {
+    maybeMap(res, \r -> i2s(r.num) + "/" + i2s(r.denom))
+}
+
 main() {
-    prog = s2infixAst("x=10;y=521/124;!\n-35/7/8");
+    prog = s2infixAst("x=35;!\n-x/10 - 3/4");
 
     ast = prog.expr;    
     decl = buildDeclMap(prog.d);
 
     res = ast2mr(ast, decl);
-    println(res);
+    maybeApply(mr2s(res), println);
 
     quit(0);
 }

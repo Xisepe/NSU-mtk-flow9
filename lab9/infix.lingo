@@ -1,0 +1,24 @@
+prog = decl?:d expr:e {Prog(:d, :e)};
+
+decl = pair+:d "!\n" {Decl(:d)};
+pair = var:k "=" expr:v ";" {Pair(:k, :v)};
+
+expr = WS sum:s {:s};
+sum = sub:p1 "+" WS sum:p2 {Add(:p1, :p2)} | sub;
+sub = divide:s1 _sub+:s2 {buildSub(:s1, :s2)} | divide;
+_sub = '-' WS divide:s {:s};
+divide = product:i1 _divide+:i2 {buildDiv(:i1, :i2)} | product;
+_divide = '/' WS product:s {:s};
+product = unary:i1 "*" WS product:i2 {Mult(:i1, :i2)} | unary;
+unary = '-' WS unit:n {Negative(:n)} | unit;
+unit = atom | '(' expr:e ')' WS {:e};
+
+atom = number | var;
+var = letter+$d WS {Var($d)};
+number = digit+$d WS {Int(s2i($d))};
+
+letter = 'a' - 'z';
+digit = '0' - '9';
+
+WS = s*;
+s = " " | "\t" | "\n";
