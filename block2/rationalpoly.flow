@@ -2,6 +2,7 @@ import ast;
 
 export {
     //map of var:pow
+    //TODO: replace with array of Pair
     PTerm : (t: Tree<string, int>);
     Polynomial : (e : Tree<PTerm, int>);
     RationalPoly : (p1 : Polynomial, p2 : Polynomial);
@@ -175,6 +176,8 @@ p2s(p: Polynomial) {
 rp2s(rp: RationalPoly) {
     num = p2s(rp.p1);
     denom = p2s(rp.p2);
-    divstr = strRepeat("-", max(strlen(num), strlen(denom)));
-    num + "\n" + divstr + "\n" + denom
+    mx = max(strlen(num), strlen(denom));
+    mn = min(strlen(num), strlen(denom));
+    divstr = strRepeat("-", mx);
+    num + "\n" + divstr + "\n" + strRepeat(" ", (mx - mn)/2) + denom
 }

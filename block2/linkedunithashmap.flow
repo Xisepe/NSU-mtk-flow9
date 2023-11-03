@@ -1,0 +1,82 @@
+import math/hash;
+import ds/hashmap;
+import ds/dlist;
+import ast;
+
+export{
+    LinkedUnitHashMap(list: DList<Unit>, map: HashMap<Unit, DLink<Unit>>);
+    makeLinkedUnitHashMap() -> LinkedUnitHashMap;
+    pushUnit(m: LinkedUnitHashMap, e: Unit) -> void;
+    removeUnit(m: LinkedUnitHashMap, e: Unit) -> void;
+    mapLHM(m: LinkedUnitHashMap, mappingFn: (Unit) -> Unit) ->LinkedUnitHashMap;
+    mergeLHM(m1: LinkedUnitHashMap, m2: LinkedUnitHashMap) -> void;
+    containsUnit(m: LinkedUnitHashMap, e: Unit)-> bool;
+    cartesianMapLHS(m1: LinkedUnitHashMap, m2: LinkedUnitHashMap, mappingFn: (Unit, Unit) -> Unit) -> LinkedUnitHashMap;
+    filterLHM(m: LinkedUnitHashMap, pred: (Unit)->bool) -> void;
+    iterLHM(m: LinkedUnitHashMap, f: (Unit)->void) -> void;
+}
+
+unitHash(e: Unit) -> int {
+    fastHashString(ast2s(e))
+}
+
+makeLinkedUnitHashMap() {
+    LinkedUnitHashMap(makeDList(), makeHashMap(unitHash))
+}
+pushUnit(m: LinkedUnitHashMap, e: Unit) {
+    if (containsKeyHashMap(m.map, e)) {
+        nop()
+    } else {
+        node = pushDList(m.list, e);
+        setHashMap(m.map, e, node);
+        nop()
+    }
+}
+removeUnit(m: LinkedUnitHashMap, e: Unit) {
+    rm = lookupHashMap(m.map, e);
+    maybeApply(rm, \u-> {
+        removeDList(m.list, u);
+        removeFromHashMap(m.map, u.v)
+    }) 
+}
+
+containsUnit(m: LinkedUnitHashMap, e: Unit)-> bool {
+    containsKeyHashMap(m.map, e)
+}
+
+mapLHM(m: LinkedUnitHashMap, mappingFn: (Unit) -> Unit) ->LinkedUnitHashMap {
+    mm = makeLinkedUnitHashMap();
+    iterLHM(m, \u-> pushUnit(mm, mappingFn(u)));
+    mm
+}
+
+cartesianMapLHS(m1: LinkedUnitHashMap, m2: LinkedUnitHashMap, mappingFn: (Unit, Unit) -> Unit) -> LinkedUnitHashMap {
+    mm = makeLinkedUnitHashMap();
+    iterLHM(
+        m1,
+        \u1-> {
+            iterLHM(
+                m2,
+                \u2-> {
+                    pushUnit(mm, mappingFn(u1,u2))
+                }
+            )
+        }
+        )
+    mm
+}
+
+//merges into left
+mergeLHM(m1: LinkedUnitHashMap, m2: LinkedUnitHashMap) -> void {
+    iterLHM(m2, \e->pushUnit(m1,e))
+}
+
+//pred to delete
+filterLHM(m: LinkedUnitHashMap, pred: (Unit)->bool) {
+    keys = filter(hashMapKeys(m.map), pred);
+    iter(keys, \e->removeUnit(m, e))    
+}
+
+iterLHM(m: LinkedUnitHashMap, f: (Unit)->void) {
+    iterDList(m.list, f)
+}

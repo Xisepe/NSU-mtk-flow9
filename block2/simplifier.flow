@@ -1,62 +1,28 @@
 import ast;
-import ds/set;
 import dynamic;
+import linkedunithashmap;
+import ds/set;
 
 export {
     SRule : (term: Unit, substitude: Unit);
-    Rules : (r: Set<SRule>);
     Match : (subs: Tree<string, Unit>);
-
     
+    addRule(r: Set<SRule>, s: string) -> Set<SRule>;
+    
+    cost(e: Unit)-> int;
 
-    addRule(rules: Rules, r: SRule) -> Rules;
-    buildMatchedTerm(r: SRule, m: Match) -> Unit;
     match(ex: Unit, pattern: Unit) -> Maybe<Match>;
-    simplifyByRules(expr: Unit, r: Rules) -> Unit;
+    replaceNode(substitude: Unit, structBuilder: (Unit)->Unit) -> Unit;
+
+    applyRulesToTerms(terms: LinkedUnitHashMap, rules: Set<SRule>, addPred: (Unit)->bool)->void;
+    findCandidates(expr: Unit, tb: (Unit) -> Unit, rules: Set<SRule>, ogCost: int) -> Simplification;
 }
 
 BiOp ::= Add, Mult, Sub, Div;
 
-_buildUnassociative(a, b, struct: (Unit, Unit)->BiOp) ->[BiOp] {
-    aa = _buildAllAssociativityVariants(a);
-    bb = _buildAllAssociativityVariants(b);
-    mapConcat(aa, \e -> map(
-        bb,
-        \ei-> struct(e, ei)
-    ));
-}
-
-_buildAssociative(a, b, struct: (Unit, Unit) -> BiOp) -> [BiOp] {
-    c1 = _buildUnassociative(a,b,struct);
-    if (a != b) {
-        concat(
-            c1,
-            map(c1, \e-> struct(e.v2, e.v1))
-            )
-    } else {
-        c1
-    }    
-}
-
-_buildAllAssociativityVariants(term: Unit) -> [Unit] {
-    switch (term) {
-        Int(v): [Int(v)];
-        Var(x): [Var(x)];
-        Negative(v): map(_buildAllAssociativityVariants(v), \e->Negative(e));
-        Add(a,b): _buildAssociative(a, b, \v1,v2 -> Add(v1,v2));
-        Sub(a,b): _buildUnassociative(a, b, \v1,v2 -> Sub(v1,v2));
-        Mult(a,b): _buildAssociative(a, b, \v1,v2 -> Mult(v1,v2));
-        Div(a,b): _buildUnassociative(a, b, \v1,v2 -> Add(v1,v2));
-    }
-}
-
-addRule(rules: Rules, r: SRule) -> Rules {
-    arr = fold(
-        map(_buildAllAssociativityVariants(r.term), \e-> SRule(e, r.substitude)),
-        [],
-        \acc: [SRule], e: SRule -> if (e.term == e.substitude) acc else arrayPush(acc, e)
-    );
-    Rules(mergeSets(rules.r, buildSet(arr)))
+addRule(r: Set<SRule>, s: string) -> Set<SRule> {
+    ss = strSplit(s, "=");
+    insertSet(r,SRule(s2ast(ss[0]), s2ast(ss[1])))    
 }
 
 _buildMatchedTerm(e: Unit, t: Tree<string, Unit>) {
@@ -115,39 +81,133 @@ match(ex: Unit, pattern: Unit) -> Maybe<Match> {
     maybeMap(_match(ex,pattern), \t-> Match(t))
 }
 
-applyFirstSuccessRule(expr: Unit, r: Rules) -> Unit {
-    acc: Maybe<Unit> = None();
-    either(foldSet(
-        r.r,
-        acc,
-        \holder, e-> {
-            eitherFn(
-                holder,
-                \ida->Some(idfn(ida)),
-                \-> {
-                    maybeMap(match(expr, e.term), \m->buildMatchedTerm(e, m))
-                }
-            )
-        }
-    ), expr)   
+replaceNode(substitude: Unit, structBuilder: (Unit)->Unit) -> Unit {
+    structBuilder(substitude)
 }
 
-simplifyByRules(expr: Unit, r: Rules) -> Unit {
-    biSelf = \a,b,struct: (Unit, Unit)->Unit -> {
-        aa = simplifyByRules(a,r);
-        bb = simplifyByRules(b,r);
-        applyFirstSuccessRule(struct(aa,bb), r);
+cost(e: Unit) ->int {
+    _cost(e, 0)
+}
+
+_cost(e: Unit, init: int)-> int {
+    biOp = \a,b-> _cost(a, init) + _cost(b, init) + 1;
+    switch (e) {
+        Int(v): 1;
+        Var(x): 1;
+        Negative(v): _cost(v, init) + 1;
+        Add(a,b): biOp(a,b);
+        Sub(a,b): biOp(a,b);
+        Mult(a,b): biOp(a,b);
+        Div(a,b): biOp(a,b);        
     }
-    switch(expr) {
-        Int(v): applyFirstSuccessRule(expr, r);
-        Var(x): applyFirstSuccessRule(expr, r);
-        Negative(v): {
-            vv = simplifyByRules(v,r);
-            applyFirstSuccessRule(vv, r);
+}
+
+Simplification(trees: LinkedUnitHashMap, nodes: LinkedUnitHashMap, minCost: int);
+
+applyRulesToTerms(terms: LinkedUnitHashMap, rules: Set<SRule>, addPred: (Unit)->bool) {
+    iterLHM(terms, \u -> {
+        iterSet(
+            rules,
+            \ri-> {
+                maybeApply(
+                    maybeMap(
+                        match(u, ri.term),
+                        \t->buildMatchedTerm(ri, t)
+                    ),
+                    \term-> {
+                        if(addPred(term)) {
+                            pushUnit(terms, term)
+                        } else nop();                        
+                    }
+                )}           
+        )
+    })
+}
+
+_leaf(expr: Unit, tb: (Unit) -> Unit) -> Simplification {
+    terms = makeLinkedUnitHashMap();
+    pushUnit(terms, expr);
+    trees = makeLinkedUnitHashMap();
+    t = tb(expr);
+    pushUnit(trees, tb(expr));
+    Simplification(trees, terms, cost(t))
+}
+
+_biFindCandidates(v1: Unit, v2: Unit,struct: (Unit,Unit)-> Unit, tb: (Unit) -> Unit, rules: Set<SRule>, ogCost: int) -> Simplification {
+    l = findCandidates(v1, \u->tb(struct(u,v2)), rules, ogCost);
+    r = findCandidates(v2, \u->tb(struct(v1,u)), rules, ogCost);
+    //build all possible permutation of nodes at current step, then apply all possible rules
+    nodes = cartesianMapLHS(l.nodes, r.nodes, \u1,u2->struct(u1,u2));
+    applyRulesToTerms(nodes, rules, \u->true);
+    //merge trees from different branches, filter them by updated minCost, add new trees made from nodes, then apply rules
+    mergeLHM(l.trees, r.trees);
+    minCost = min(l.minCost, r.minCost);
+    filterLHM(l.trees, \u-> cost(u) > minCost);
+    
+    currentTrees = makeLinkedUnitHashMap();
+    iterLHM(nodes, \u -> {
+        newTree = replaceNode(u,tb);
+        if (cost(newTree)>ogCost || containsUnit(l.trees, newTree)) {
+            nop()
+        } else {
+            pushUnit(currentTrees, newTree)
         }
-        Add(a,b): biSelf(a,b, \v1,v2->Add(v1,v2));
-        Sub(a,b): biSelf(a,b, \v1,v2->Sub(v1,v2));
-        Mult(a,b): biSelf(a,b, \v1,v2->Mult(v1,v2));
-        Div(a,b): biSelf(a,b, \v1,v2->Div(v1,v2));
+    });
+    applyRulesToTerms(currentTrees, rules, \u-> {
+        cost(u) <= ogCost && !containsUnit(l.trees, u)
+    })
+    mergeLHM(l.trees, currentTrees);
+    mmin = ref minCost;
+    iterLHM(l.trees, \u-> {
+        c = cost(u);
+        if (c < ^mmin) {
+            mmin := c;
+            nop()
+        } else nop()
+    });
+    filterLHM(l.trees, \u -> cost(u) > ^mmin);            
+    Simplification(l.trees, nodes, ^mmin)    
+}
+_negFindCandidates(v1: Unit, tb: (Unit) -> Unit, rules: Set<SRule>, ogCost: int) -> Simplification {
+    l = findCandidates(v1, \u->tb(Negative(u)), rules, ogCost);
+    //build all possible permutation of nodes at current step, then apply all possible rules
+    nodes = mapLHM(l.nodes, \u -> Negative(u));
+    applyRulesToTerms(nodes, rules, \u->true);
+
+    currentTrees = makeLinkedUnitHashMap();
+    iterLHM(nodes, \u -> {
+        newTree = replaceNode(u,tb);
+        if (cost(newTree)>ogCost || containsUnit(l.trees, newTree)) {
+            nop()
+        } else {
+            pushUnit(currentTrees, newTree)
+        }
+    });
+    applyRulesToTerms(currentTrees, rules, \u-> {
+        cost(u) <= ogCost && !containsUnit(l.trees, u)
+    })
+    mergeLHM(l.trees, currentTrees);
+    mmin = ref l.minCost;
+    iterLHM(l.trees, \u-> {
+        c = cost(u);
+        if (c < ^mmin) {
+            mmin := c;
+            nop()
+        } else nop()
+    });
+    filterLHM(l.trees, \u -> cost(u) > ^mmin);            
+    Simplification(l.trees, nodes, ^mmin)        
+}
+
+
+findCandidates(expr: Unit, tb: (Unit) -> Unit, rules: Set<SRule>, ogCost: int) -> Simplification {
+    switch(expr) {
+        Int(v): _leaf(expr, tb);
+        Var(x): _leaf(expr, tb);
+        Add(v1,v2): _biFindCandidates(v1,v2, \u1,u2->Add(u1,u2), tb, rules, ogCost);
+        Sub(v1,v2): _biFindCandidates(v1,v2, \u1,u2->Sub(u1,u2), tb, rules, ogCost); 
+        Mult(v1,v2): _biFindCandidates(v1,v2, \u1,u2->Mult(u1,u2), tb, rules, ogCost); 
+        Div(v1,v2): _biFindCandidates(v1,v2, \u1,u2->Div(u1,u2), tb, rules, ogCost); 
+        Negative(v): _negFindCandidates(v, tb, rules, ogCost);
     }
 }

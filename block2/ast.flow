@@ -1,11 +1,9 @@
 import runtime;
 import ds/tree;
 import lingo/pegcode/driver;
+import string;
 
 export {
-    Prog : (d: [Decl], expr: Unit);
-
-    Decl : (kv: [Pair<Var,Unit>]);
     Unit ::= Int, Sub, Add, Div, Mult, Negative, Var;
 
     Add : (v1: Unit, v2: Unit);
@@ -18,9 +16,9 @@ export {
 
     buildSub(xs: [flow]) -> Sub;
     buildDiv(xs: [flow]) -> Div;
-    buildDeclMap(d: [Decl]) -> Tree<string, Unit>;
+    addDecl(t: Tree<string, Unit>, k: string) -> Tree<string, Unit>;
 
-    s2ast(s : string) -> Prog;
+    s2ast(s : string) -> Unit;
     ast2s(ast : Unit) -> string;
 }
 
@@ -34,7 +32,7 @@ buildDiv(xs) {
 
 expressionLingo : ref Maybe<[PegOp]> = ref None();
 
-s2ast(s)-> Prog {
+s2ast(s)-> Unit {
     parsic(
         onlyOnce(
             expressionLingo, \ -> {
@@ -49,14 +47,10 @@ s2ast(s)-> Prog {
             )
         )
 }
-
-buildDeclMap(d) {
-    map: Tree<string, Unit> = makeTree();
-    if (length(d) == 0)
-        map
-    else {
-        fold(d[0].kv, map, \acc, e -> setTree(acc, e.first.val, e.second))
-    }
+//TODO: fix cases x=f(x)
+addDecl(t: Tree<string, Unit>, k: string) -> Tree<string, Unit> {
+    arr = strSplit(k, "=");
+    setTree(t, arr[0], s2ast(arr[1]))
 }
 
 _ast2s(ast: Unit, par)-> string {
