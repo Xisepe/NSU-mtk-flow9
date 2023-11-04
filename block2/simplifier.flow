@@ -133,46 +133,31 @@ _leaf(expr: Unit, tb: (Unit) -> Unit) -> Simplification {
     Simplification(trees, terms, cost(t))
 }
 
-_biFindCandidates(v1: Unit, v2: Unit,struct: (Unit,Unit)-> Unit, tb: (Unit) -> Unit, rules: Set<SRule>, ogCost: int) -> Simplification {
-    l = findCandidates(v1, \u->tb(struct(u,v2)), rules, ogCost);
-    r = findCandidates(v2, \u->tb(struct(v1,u)), rules, ogCost);
-    //build all possible permutation of nodes at current step, then apply all possible rules
-    nodes = cartesianMapLHS(l.nodes, r.nodes, \u1,u2->struct(u1,u2));
-    applyRulesToTerms(nodes, rules, \u->true);
-    //merge trees from different branches, filter them by updated minCost, add new trees made from nodes, then apply rules
-    mergeLHM(l.trees, r.trees);
-    minCost = min(l.minCost, r.minCost);
-    filterLHM(l.trees, \u-> cost(u) > minCost);
-    
-    currentTrees = makeLinkedUnitHashMap();
-    iterLHM(nodes, \u -> {
-        newTree = replaceNode(u,tb);
-        if (cost(newTree)>ogCost || containsUnit(l.trees, newTree)) {
-            nop()
-        } else {
-            pushUnit(currentTrees, newTree)
-        }
-    });
-    applyRulesToTerms(currentTrees, rules, \u-> {
-        cost(u) <= ogCost && !containsUnit(l.trees, u)
-    })
-    mergeLHM(l.trees, currentTrees);
-    mmin = ref minCost;
-    iterLHM(l.trees, \u-> {
+_filterMin(m: LinkedUnitHashMap, min: int)->int {
+    mmin = ref min;
+    iterLHM(m, \u-> {
         c = cost(u);
         if (c < ^mmin) {
             mmin := c;
             nop()
         } else nop()
     });
-    filterLHM(l.trees, \u -> cost(u) > ^mmin);            
-    Simplification(l.trees, nodes, ^mmin)    
+    filterLHM(m, \u -> cost(u) > ^mmin);
+    ^mmin      
 }
-_negFindCandidates(v1: Unit, tb: (Unit) -> Unit, rules: Set<SRule>, ogCost: int) -> Simplification {
-    l = findCandidates(v1, \u->tb(Negative(u)), rules, ogCost);
-    //build all possible permutation of nodes at current step, then apply all possible rules
-    nodes = mapLHM(l.nodes, \u -> Negative(u));
+
+_biFindCandidates(v1: Unit, v2: Unit,struct: (Unit,Unit)-> Unit, tb: (Unit) -> Unit, rules: Set<SRule>, ogCost: int) -> Simplification {
+    l = findCandidates(v1, \u->tb(struct(u,v2)), rules, ogCost);
+    r = findCandidates(v2, \u->tb(struct(v1,u)), rules, ogCost);
+    //build all possible permutation of nodes at current step, then apply all possible rules and filter min
+    nodes = cartesianMapLHS(l.nodes, r.nodes, \u1,u2->struct(u1,u2));
     applyRulesToTerms(nodes, rules, \u->true);
+
+    _filterMin(nodes, min(l.minCost, r.minCost));
+    //merge trees from different branches, filter them by updated minCost, add new trees made from nodes, then apply rules
+    mergeLHM(l.trees, r.trees);
+    minCost = min(l.minCost, r.minCost);
+    filterLHM(l.trees, \u-> cost(u) > minCost);
 
     currentTrees = makeLinkedUnitHashMap();
     iterLHM(nodes, \u -> {
@@ -186,17 +171,30 @@ _negFindCandidates(v1: Unit, tb: (Unit) -> Unit, rules: Set<SRule>, ogCost: int)
     applyRulesToTerms(currentTrees, rules, \u-> {
         cost(u) <= ogCost && !containsUnit(l.trees, u)
     })
-    mergeLHM(l.trees, currentTrees);
-    mmin = ref l.minCost;
-    iterLHM(l.trees, \u-> {
-        c = cost(u);
-        if (c < ^mmin) {
-            mmin := c;
+    mergeLHM(l.trees, currentTrees);   
+    Simplification(l.trees, nodes, _filterMin(l.trees, minCost))
+}
+_negFindCandidates(v1: Unit, tb: (Unit) -> Unit, rules: Set<SRule>, ogCost: int) -> Simplification {
+    l = findCandidates(v1, \u->tb(Negative(u)), rules, ogCost);
+    //build all possible permutation of nodes at current step, then apply all possible rules
+    nodes = mapLHM(l.nodes, \u -> Negative(u));
+    applyRulesToTerms(nodes, rules, \u->true);
+    _filterMin(nodes, l.minCost);
+
+    currentTrees = makeLinkedUnitHashMap();
+    iterLHM(nodes, \u -> {
+        newTree = replaceNode(u,tb);
+        if (cost(newTree)>ogCost || containsUnit(l.trees, newTree)) {
             nop()
-        } else nop()
+        } else {
+            pushUnit(currentTrees, newTree)
+        }
     });
-    filterLHM(l.trees, \u -> cost(u) > ^mmin);            
-    Simplification(l.trees, nodes, ^mmin)        
+    applyRulesToTerms(currentTrees, rules, \u-> {
+        cost(u) <= ogCost && !containsUnit(l.trees, u)
+    })
+    mergeLHM(l.trees, currentTrees);          
+    Simplification(l.trees, nodes, _filterMin(l.trees, l.minCost))        
 }
 
 

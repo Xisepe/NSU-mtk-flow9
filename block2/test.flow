@@ -3,9 +3,9 @@ import simplifier;
 
 
 main() {
-    ex = s2ast("(x+y+0)+(y+x)/(x+y)");
+    ex = s2ast("(((x+y) + f*0 + (y+x))+z + w)+0 + (2*(x+y) + (w + z))/1");
     s = makeSet();
-    rules = "a+b=b+a;a+a=2*a;a*b=b*a;a+0=a;a*0=0;a/a=1;a*1=a";
+    rules = "a+b=b+a;a+a=2*a;a*b=b*a;a+0=a;a*0=0;a/a=1;a*1=a;(a+b)+c=a+(b+c);a/1=a";
     r = fold(strSplit(rules,";"), makeSet(), \acc, e-> addRule(acc, e));
     sp = findCandidates(ex, idfn, r, cost(ex));
     iterLHM(sp.trees, \u->println(ast2s(u)));
