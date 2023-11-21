@@ -1,14 +1,17 @@
 import simplifier;
 // import linkedunithashmap;
+// import rationalpoly;
 
 
 main() {
-    ex = s2ast("(((x+y) + f*0 + (y+x))+z + w)+0 + (2*(x+y) + (w + z))/1");
+    // //"(((x+y) + f*0 + (y+x))+z + w)+0 + (2*(x+y) + (w + z))/1"
+    // //2 * (x + y) + (3 * x - 2 * y) + (4 * y - x) + (x * 0) + (y * 0)
+    ex = s2ast("4*z*4*z+2*4*z*y+y*y");
     s = makeSet();
-    rules = "a+b=b+a;a+a=2*a;a*b=b*a;a+0=a;a*0=0;a/a=1;a*1=a;(a+b)+c=a+(b+c);a/1=a";
+    rules = "a+b=b+a;a*b=b*a;x*(y*z)=(x*y)*z;x*x+2*x*y+y*y=(x+y)*(x+y)";
     r = fold(strSplit(rules,";"), makeSet(), \acc, e-> addRule(acc, e));
     sp = findCandidates(ex, idfn, r, cost(ex));
     iterLHM(sp.trees, \u->println(ast2s(u)));
-
+    // println(rp2s(ast2rp(s2ast("(x-y)*(x+y)"))));
     quit(0);
 }

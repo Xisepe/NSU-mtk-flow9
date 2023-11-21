@@ -1,9 +1,11 @@
 import ast;
+import ds/hashmap;
+import math/hash;
 
 export {
     //map of var:pow
     //TODO: replace with array of Pair
-    PTerm : (t: Tree<string, int>);
+    PTerm : (t: [Pair<string, int>]);
     Polynomial : (e : Tree<PTerm, int>);
     RationalPoly : (p1 : Polynomial, p2 : Polynomial);
 
@@ -13,7 +15,6 @@ export {
     buildConstantPoly(v: int) -> Polynomial;
     
     addPolynomial(p1: Polynomial, p2: Polynomial)->Polynomial;
-    subPolynomial(p1: Polynomial, p2: Polynomial)->Polynomial;
     multPolynomial(p1: Polynomial, p2: Polynomial)->Polynomial;
     negatePolynomial(t: Polynomial) -> Polynomial;
 
@@ -42,15 +43,29 @@ negatePolynomial(t: Polynomial) {
 }
 
 multTerm(t1: PTerm, t2: PTerm) {
-    PTerm(treeMergeFn(t1.t, t2.t, \a,b -> a + b))
+    mapped = map(t1.t, \e->e.first);
+    PTerm(sort(concat(
+        fold(t1.t,[], \acc,e-> {
+            arrayPush(acc,fold(t2.t, e ,\acci,ei-> {
+                if (e.first == ei.first) {
+                    Pair(acci.first, acci.second + ei.second)
+                } else {
+                    acci
+                }
+            }))
+        }),
+        fold(t2.t,[], \acc, e-> {
+        if (contains(mapped, e.first)) {
+            acc
+        } else {
+            arrayPush(acc, e)
+        }  
+        })
+    )))
 }
 
 addPolynomial(p1: Polynomial, p2: Polynomial) {
     buildPolynomialFn(p1, p2,\a, b -> a + b)
-}
-
-subPolynomial(p1: Polynomial, p2: Polynomial) {
-    buildPolynomialFn(p1, p2, \a, b -> a - b)
 }
 
 multPolynomial(p1: Polynomial, p2: Polynomial) {
@@ -75,12 +90,19 @@ multPolynomial(p1: Polynomial, p2: Polynomial) {
     )
 }
 
+removeZeroTerms(p: RationalPoly) {
+    RationalPoly(
+        Polynomial(filterTree(p.p1.e,\k,v->v!=0)),
+        Polynomial(filterTree(p.p2.e,\k,v->v!=0))
+    )
+}
+
 buildConstantTerm() {
-    PTerm(makeTree())
+    PTerm([])
 }
 
 buildTerm1(k: string, v: int) {
-    PTerm(makeTree1(k, v))
+    PTerm([Pair(k, v)])
 }
 
 buildPoly1(t: PTerm, v: int) {
@@ -92,7 +114,7 @@ buildConstantPoly(v: int) {
 }
 
 ast2rp(e: Unit) -> RationalPoly {
-    switch(e) {
+    removeZeroTerms(switch(e) {
         Int(v): {
             RationalPoly(
                 buildConstantPoly(v),
@@ -125,9 +147,11 @@ ast2rp(e: Unit) -> RationalPoly {
         }
         Sub(v1,v2): {
             l = ast2rp(v1);
-            r = ast2rp(v2);
+            rr = ast2rp(v2);
+            r = RationalPoly(negatePolynomial(rr.p1),rr.p2);
+
             RationalPoly(
-                subPolynomial(
+                addPolynomial(
                     multPolynomial(l.p1, r.p2),
                     multPolynomial(r.p1, l.p2)
                 ),
@@ -150,15 +174,15 @@ ast2rp(e: Unit) -> RationalPoly {
                 multPolynomial(l.p2,r.p1)
             )           
         }
-    }
+    })
 }
 
 t2s(t: PTerm) {
-    foldTree(
+    fold(
         t.t,
         "",
-        \k, v, acc -> {
-            acc + k + "^" + i2s(v)
+        \acc, e -> {
+            acc + e.first + "^" + i2s(e.second)
         }
     )
 }
