@@ -1,0 +1,15 @@
+import nemo;
+
+main() {
+    prog = "
+var x : int;
+var arr: [[[int]]];
+{arr := [[1,2],[3,4]];
+    {x:= (y - 100) U (x < 5)? U {x:=(x+1)}*};
+    print((-100 *x));
+    x :=app(arr,x)
+}
+";
+    println(s2ast(prog));
+    quit(0);
+}

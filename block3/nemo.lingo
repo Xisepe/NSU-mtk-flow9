@@ -1,0 +1,36 @@
+prog = ws decl*:d body:b { Prog(:d, :b) };
+/*Variable declaration syntax*/
+decl = "var" ws var:v ":" ws type:t ";" ws { Decl(:v, :t) };
+
+/*Type sysyem syntax*/
+type  = int_t | array_t;
+int_t   = "int" ws { IntType() };
+array_t = "[" ws type:t "]" ws { ArrayType(:t) };
+
+/*Expression syntax*/
+expr = update | apply | var | number | const_array | bi_op | un_op;
+
+bi_op = "(" ws expr:e1 op:s ws expr:e2 ")" ws { BinOp(:e1, :e2, :s) };
+op = "+" {AddOp()}|"-" {MinusOp()}|"*" {MultOp()}|"/" {DivOp()};
+un_op = "-" ws expr:e { UnOp(:e, MinusOp()) };
+var = letter+$d ws { Var($d) };
+number = digit+$d ws { Int(s2i($d)) };
+const_array = "[" ws expr?:e1 ("," ws expr)*:e2 "]" ws { buildArray(:e1, :e2) };
+apply = "app" ws "(" ws expr:arr "," ws expr:i ")" ws { Apply(:arr, :i) };
+update = "upd" ws "(" ws expr:arr "," ws expr:i "," ws expr:val ")" ws { Update(:arr, :i, :val) };
+
+/*Program body syntax*/
+body = ws statement*;
+statement = assign | test | print | sequence | selection | iteration | "{" ws statement:s "}" ws {:s};
+
+sequence = "{" ws statement:s ";" ws statement:s1 (";" ws statement)*:s2 "}" ws { buildSeq(:s, :s1, :s2) };
+selection = "{" ws statement:s "U" ws statement:s1 ("U" ws statement)*:s2 "}" ws { buildSel(:s, :s1, :s2) };
+iteration = "{" ws statement:s "}" ws "*" ws { Iteration(:s) };
+assign = var:v ":=" ws expr:e { Assign(:v, :e) };
+test = "(" ws expr:e1 cond:c ws expr:e2 ")" ws "?" ws { Test(:e1, :e2, :c) };
+cond = "!=" { NotEq() } | "==" { Eq() }| "<=" { LsEq() }| ">=" { GrEq() } | "<" { Ls() } | ">" { Gr() };
+print = "print" ws "(" ws expr:e ")" ws { Print(:e) };
+
+letter = 'a'-'z';
+digit  = '0'-'9';
+ws = (' ' | '\t' | '\n' | '\r')*;

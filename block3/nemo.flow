@@ -1,0 +1,69 @@
+import lingo/pegcode/driver;
+import string;
+import runtime;
+
+export {
+    Prog : (d: [Decl], b: [Statement]);
+
+    Decl : (v: Var, t: Type);
+
+    Type ::= IntType, ArrayType;
+    IntType : ();
+    ArrayType : (t: Type);
+
+    Expr ::= BinOp, UnOp, Var, Int, Array, Apply, Update;
+    Op ::= AddOp, MinusOp, MultOp, DivOp;
+    AddOp(); MinusOp(); MultOp(); DivOp();
+    BinOp : (e1: Expr, e2: Expr, op: Op);
+    UnOp : (e: Expr, op: MinusOp);
+    Int : (val: int);
+    Var : (val: string);
+    Array : (e: [Expr]);
+    Apply : (arr: Expr, i: Expr);
+    Update : (arr: Expr, i: Expr, val: Expr);
+    
+    Statement ::= Assign, Test, Sequence, Selection, Iteration, Print;
+    Assign : (v: Var, e: Expr);
+    Sequence : (seq: [Statement]);
+    Condition ::= Eq, NotEq, LsEq, GrEq, Ls, Gr;
+    Eq(); NotEq(); LsEq(); GrEq(); Ls(); Gr();
+    Test : (e1: Expr, e2: Expr, c: Condition);
+    Selection : (sel: [Statement]);
+    Iteration : (b: Statement);
+    Print : (e: Expr);
+
+    s2ast(s: string) -> Prog;
+}
+
+nemoLingo : ref Maybe<[PegOp]> = ref None();
+
+buildSeq(xs: [flow]) -> Sequence {
+    arr: [Statement] = [xs[0],xs[1]];
+    Sequence(fold(xs[2], arr, \acc, x -> arrayPush(acc, x)))
+}
+buildSel(xs: [flow]) -> Selection {
+    arr: [Statement] = [xs[0],xs[1]];
+    Selection(fold(xs[2], arr, \acc, x -> arrayPush(acc, x)))
+}
+
+buildArray(xs: [flow]) {
+    Array(concat(xs[0], xs[1]))
+}
+
+s2ast(s)-> Prog {
+    parsic(
+        onlyOnce(
+            nemoLingo, \ -> {
+		compilePegGrammar("#include nemo.lingo");
+	    }),
+        s,
+        pegActions(
+            [
+                Pair("buildArray", buildArray),
+                Pair("buildSeq", buildSeq),
+                Pair("buildSel", buildSel)
+            ]
+            )
+        )
+}
+
