@@ -1,0 +1,20 @@
+import runtime;
+
+fib(n) {
+    ^(fold(enumFromTo(1,n), ref [], \arr, i -> {
+        ind = i - 1;
+        if (i == 1) 
+            refArrayPush(arr, 0)
+        else if (i == 2)
+            refArrayPush(arr, 1)
+        else 
+            refArrayPush(arr, (^arr)[ind-2] + (^arr)[ind - 1]);
+        arr;
+}));
+}
+
+
+main() {
+    println(fib(10));
+    quit(0);
+}

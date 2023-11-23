@@ -11,11 +11,14 @@ export {
     IntType : ();
     ArrayType : (t: Type);
 
-    Expr ::= BinOp, UnOp, Var, Int, Array, Apply, Update;
-    Op ::= AddOp, MinusOp, MultOp, DivOp;
-    AddOp(); MinusOp(); MultOp(); DivOp();
-    BinOp : (e1: Expr, e2: Expr, op: Op);
-    UnOp : (e: Expr, op: MinusOp);
+    Expr ::= Array, Update, Unit;
+    Unit ::= Int, Sub, Add, Div, Mult, Negative, Var, Apply;
+
+    Add : (v1: Unit, v2: Unit);
+    Sub : (v1: Unit, v2: Unit);
+    Mult : (v1: Unit, v2 : Unit);
+    Div : (v1: Unit, v2 : Unit);
+    Negative : (v: Unit);
     Int : (val: int);
     Var : (val: string);
     Array : (e: [Expr]);
@@ -25,32 +28,49 @@ export {
     Statement ::= Assign, Test, Sequence, Selection, Iteration, Print;
     Assign : (v: Var, e: Expr);
     Sequence : (seq: [Statement]);
-    Condition ::= Eq, NotEq, LsEq, GrEq, Ls, Gr;
-    Eq(); NotEq(); LsEq(); GrEq(); Ls(); Gr();
-    Test : (e1: Expr, e2: Expr, c: Condition);
     Selection : (sel: [Statement]);
     Iteration : (b: Statement);
     Print : (e: Expr);
+
+    Test : (b: Bool);
+    Bool ::= And, Or, Pred;
+    And : (b1: Bool, b2: Bool);
+    Or : (b1: Bool, b2: Bool);
+    Pred : (e1: Expr, e2: Expr, c: Condition);
+    Condition ::= Eq, NotEq, LsEq, GrEq, Ls, Gr;
+    Eq(); NotEq(); LsEq(); GrEq(); Ls(); Gr();
 
     s2ast(s: string) -> Prog;
 }
 
 nemoLingo : ref Maybe<[PegOp]> = ref None();
+buildSub(xs: [flow]) -> Sub;
+buildDiv(xs: [flow]) -> Div;
+buildSel(xs: [flow]) -> Selection;
+buildSeq(xs: [flow]) -> Sequence;
+buildArray(xs: [flow]) -> Array;
 
-buildSeq(xs: [flow]) -> Sequence {
-    arr: [Statement] = [xs[0],xs[1]];
-    Sequence(fold(xs[2], arr, \acc, x -> arrayPush(acc, x)))
-}
-buildSel(xs: [flow]) -> Selection {
-    arr: [Statement] = [xs[0],xs[1]];
-    Selection(fold(xs[2], arr, \acc, x -> arrayPush(acc, x)))
+buildSub(xs) {
+    fold(xs[1], xs[0], \acc, x -> Sub(acc, x))
 }
 
-buildArray(xs: [flow]) {
+buildDiv(xs) {
+    fold(xs[1], xs[0], \acc, x -> Div(acc, x))
+}
+
+buildSel(xs) {
+    Selection(arrayPush(xs[1], xs[0]))
+}
+
+buildSeq(xs) {
+    Sequence(xs[0])
+}
+
+buildArray(xs) {
     Array(concat(xs[0], xs[1]))
 }
 
-s2ast(s)-> Prog {
+s2ast(s) {
     parsic(
         onlyOnce(
             nemoLingo, \ -> {
@@ -60,8 +80,10 @@ s2ast(s)-> Prog {
         pegActions(
             [
                 Pair("buildArray", buildArray),
+                Pair("buildSel", buildSel),
                 Pair("buildSeq", buildSeq),
-                Pair("buildSel", buildSel)
+                Pair("buildSub", buildSub),
+                Pair("buildDiv", buildDiv)
             ]
             )
         )

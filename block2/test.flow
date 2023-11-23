@@ -6,9 +6,9 @@ import simplifier;
 main() {
     // //"(((x+y) + f*0 + (y+x))+z + w)+0 + (2*(x+y) + (w + z))/1"
     // //2 * (x + y) + (3 * x - 2 * y) + (4 * y - x) + (x * 0) + (y * 0)
-    ex = s2ast("4*z*4*z+2*4*z*y+y*y");
+    ex = s2ast("a+b+c-(b+c+a)");
     s = makeSet();
-    rules = "a+b=b+a;a*b=b*a;x*(y*z)=(x*y)*z;x*x+2*x*y+y*y=(x+y)*(x+y)";
+    rules = "a+b+c=b+c+a;x-x=0;a+b-z=(a+b)-z";
     r = fold(strSplit(rules,";"), makeSet(), \acc, e-> addRule(acc, e));
     sp = findCandidates(ex, idfn, r, cost(ex));
     iterLHM(sp.trees, \u->println(ast2s(u)));
