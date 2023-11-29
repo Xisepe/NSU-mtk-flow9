@@ -36,6 +36,7 @@ export {
     Bool ::= And, Or, Pred;
     And : (b1: Bool, b2: Bool);
     Or : (b1: Bool, b2: Bool);
+    Not : (b: Bool);
     Pred : (e1: Expr, e2: Expr, c: Condition);
     Condition ::= Eq, NotEq, LsEq, GrEq, Ls, Gr;
     Eq(); NotEq(); LsEq(); GrEq(); Ls(); Gr();

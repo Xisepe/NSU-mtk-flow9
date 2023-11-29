@@ -42,7 +42,8 @@ print = "print" ws "(" ws expr:e ")" ws { Print(:e) };
 /*bool expr*/
 test = ws "(" ws or:p ")" ws "?" ws { Test(:p) };
 or = and:e1 "or" ws or:e2 { Or(:e1, :e2) } | and;
-and = bool:e1 "and" ws and:e2 { And(:e1, :e2) } | bool;
+and = not:e1 "and" ws and:e2 { And(:e1, :e2) } | not;
+not = "!" ws bool:b { Not(:b) } | bool;
 bool = pred | ws "(" ws or:e ")" ws { :e };
 pred = expr:e1 cond:c ws expr:e2 { Pred(:e1, :e2, :c) };
 cond = "!=" { NotEq() } | "==" { Eq() }| "<=" { LsEq() }| ">=" { GrEq() } | "<" { Ls() } | ">" { Gr() };
