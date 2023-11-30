@@ -28,7 +28,7 @@ const_array = "[" ws expr?:e1 ("," ws expr)*:e2 "]" ws { buildArray(:e1, :e2) };
 update = "upd" ws "(" ws expr:arr "," ws expr:i "," ws expr:val ")" ws { Update(:arr, :i, :val) };
 
 /*Program body syntax*/
-body = ws statement*;
+body = ws statement?;
 //| "{" ws statement:s "}" ws {:s}
 statement = assign | test | print | sequence | selection | iteration ;
 

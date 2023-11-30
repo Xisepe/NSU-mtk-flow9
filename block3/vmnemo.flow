@@ -1,0 +1,38 @@
+
+export {
+    vmProg : (decl: [vmDecl], body: [vmLine]);
+    
+    vmDecl : (v: vmVar, t: vmType);
+    vmLine : (label: int, instruction: vmInstruction, goto: [int]);
+
+    vmInstruction ::= vmPrint, vmAssign, vmTest;
+    vmPrint : (e: vmExpr);
+    vmTest : (b: vmLogic);
+    vmAssign : (v: vmVar, e: vmExpr);
+
+    vmType ::= vmIntType, vmArrayType;
+    vmIntType : ();
+    vmArrayType : (t: vmType);
+
+    vmExpr ::= vmArray, vmUpdate, vmUnit;
+    vmUnit ::= vmInt, vmSub, vmAdd, vmDiv, vmMult, vmNegative, vmVar, vmApply;
+
+    vmAdd : (v1: vmUnit, v2: vmUnit);
+    vmSub : (v1: vmUnit, v2: vmUnit);
+    vmMult : (v1: vmUnit, v2 : vmUnit);
+    vmDiv : (v1: vmUnit, v2 : vmUnit);
+    vmNegative : (v: vmUnit);
+    vmInt : (val: int);
+    vmVar : (val: string);
+    vmArray : (e: [vmExpr]);
+    vmApply : (arr: vmExpr, i: vmExpr);
+    vmUpdate : (arr: vmExpr, i: vmExpr, val: vmExpr);
+
+    vmLogic ::= vmAnd, vmOr, vmPred;
+    And : (b1: vmLogic, b2: vmLogic);
+    vmOr : (b1: vmLogic, b2: vmLogic);
+    vmNot : (b: vmLogic);
+    vmPred : (e1: vmExpr, e2: vmExpr, c: vmCondition);
+    vmCondition ::= vmEq, vmNotEq, vmLsEq, vmGrEq, vmLs, vmGr;
+    vmEq(); vmNotEq(); vmLsEq(); vmGrEq(); vmLs(); vmGr();
+}
