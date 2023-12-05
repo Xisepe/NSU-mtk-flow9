@@ -11,6 +11,7 @@ export {
     IntType : ();
     ArrayType : (t: Type);
 
+    Val ::= Int, Array;
     Expr ::= Array, Update, Unit;
     Unit ::= Int, Sub, Add, Div, Mult, Negative, Var, Apply;
 
@@ -21,9 +22,9 @@ export {
     Negative : (v: Unit);
     Int : (val: int);
     Var : (val: string);
-    Array : (e: [Expr]);
-    Apply : (arr: Expr, i: Expr);
-    Update : (arr: Expr, i: Expr, val: Expr);
+    Array : (e: [Val]);
+    Apply : (arr: Var, i: Int);
+    Update : (arr: Var, i: Int, val: Expr);
     
     Statement ::= Assign, Test, Sequence, Selection, Iteration, Print;
     Assign : (v: Var, e: Expr);
@@ -33,7 +34,7 @@ export {
     Print : (e: Expr);
 
     Test : (b: Bool);
-    Bool ::= And, Or, Pred;
+    Bool ::= And, Or, Not, Pred;
     And : (b1: Bool, b2: Bool);
     Or : (b1: Bool, b2: Bool);
     Not : (b: Bool);

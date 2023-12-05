@@ -22,10 +22,10 @@ unit = atom | '(' ar_expr:e ')' ws { :e };
 atom = apply | number | var;
 var = letter+$d ws { Var($d) };
 number = digit+$d ws { Int(s2i($d)) };
-apply = "app" ws "(" ws expr:arr "," ws expr:i ")" ws { Apply(:arr, :i) };
+apply = "app" ws "(" ws var:arr "," ws number:i ")" ws { Apply(:arr, :i) };
 /*only array usage*/
-const_array = "[" ws expr?:e1 ("," ws expr)*:e2 "]" ws { buildArray(:e1, :e2) };
-update = "upd" ws "(" ws expr:arr "," ws expr:i "," ws expr:val ")" ws { Update(:arr, :i, :val) };
+const_array = "[" ws (number | const_array)?:e1 ("," ws (number | const_array))*:e2 "]" ws { buildArray(:e1, :e2) };
+update = "upd" ws "(" ws var:arr "," ws number:i "," ws expr:val ")" ws { Update(:arr, :i, :val) };
 
 /*Program body syntax*/
 body = ws statement?;

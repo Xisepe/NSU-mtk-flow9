@@ -1,11 +1,12 @@
 import nemo;
+import vm_translator;
 
 main() {
     prog = "
 var x : int;
 var arr: [[[int]]];
 {
-    arr := [[1,app( y, 100)],[34,52,15]];
+    arr := [[1,2],[34,52,15]];
     {
         {
             x:=x + 1;
@@ -19,6 +20,8 @@ var arr: [[[int]]];
     
 }
 ";
-    println(s2ast(prog));
+    nemo = s2ast(prog);
+    vm = nemo2nvm(nemo);
+    printvmProg(vm);
     quit(0);
 }
