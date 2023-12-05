@@ -3,7 +3,7 @@ import string;
 import runtime;
 
 export {
-    Prog : (d: [Decl], b: [Statement]);
+    Prog : (d: [Decl], b: Statement);
 
     Decl : (v: Var, t: Type);
 
@@ -23,8 +23,8 @@ export {
     Int : (val: int);
     Var : (val: string);
     Array : (e: [Val]);
-    Apply : (arr: Var, i: Int);
-    Update : (arr: Var, i: Int, val: Expr);
+    Apply : (arr: Var, i: Expr);
+    Update : (arr: Var, i: Expr, val: Expr);
     
     Statement ::= Assign, Test, Sequence, Selection, Iteration, Print;
     Assign : (v: Var, e: Expr);

@@ -8,7 +8,7 @@ export {
 nemo2nvm(nemo) {
     vmProg(
         decl2nvm(nemo.d),
-        body2nvm(nemo.b[0])
+        body2nvm(nemo.b)
     )
 
 }
@@ -73,7 +73,7 @@ body2nvm(body: Statement) -> [vmLine] {
 e2nvm(e: Expr) -> vmExpr {
     switch (e) {
         Array(expr) : vmArray(map(expr, val2nvm));
-        Update(expr, ind, val) : vmUpdate(var2nvm(expr), vmInt(ind.val), e2nvm(val));
+        Update(expr, ind, val) : vmUpdate(var2nvm(expr), e2nvm(ind), e2nvm(val));
         Add(v1,v2) : u2nvm(e);
         Sub(v1,v2) : u2nvm(e);
         Mult(v1,v2) : u2nvm(e);
@@ -103,7 +103,7 @@ u2nvm(e: Unit) -> vmUnit {
         Negative(v) : vmNegative(u2nvm(v));
         Var(v) : var2nvm(e);
         Int(v) : vmInt(v);
-        Apply(arr, expr) : vmApply(var2nvm(arr), vmInt(expr.val));
+        Apply(arr, expr) : vmApply(var2nvm(arr), e2nvm(expr));
     }
 }
 
