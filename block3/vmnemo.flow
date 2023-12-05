@@ -45,18 +45,30 @@ export {
     vmEq(); vmNotEq(); vmLsEq(); vmGrEq(); vmLs(); vmGr();
 }
 //todo [vars]
-vmState : (l: [int], vars: Tree<string, vmVal>);
+vmState : (s : [Pair<int,Tree<string, vmVal>>] );
+// vmState : (l: [int], vars: Tree<string, vmVal>);
 
+// initVmState(prog: vmProg) {
+//     vmState(
+//         [0],
+//         d2t(prog.decl)
+//     )
+// }
 initVmState(prog: vmProg) {
     vmState(
-        [0],
-        d2t(prog.decl)
+        [Pair(
+            0,
+            d2t(prog.decl)
+        )]
     )
+}
+mapState(goto: [int], t: Tree<string, vmVal>) {
+    vmState(map(goto, \e -> Pair(e, t)))
 }
 
 exec(prog: vmProg) -> void {
     init = 0;
-    limit = 10000;
+    limit = 100;
     _exec(
         prog.body,
         initVmState(prog),
@@ -67,14 +79,15 @@ exec(prog: vmProg) -> void {
  
 _exec(body: [vmLine], state: vmState, cur: int, limit: int) -> void {
     end = length(body);
-    newState = fold(state.l, vmState([], state.vars), \acc, li-> {
-        s = execLine(body[li], acc.vars);
-        vmState(filter(concat(acc.l, s.l), \e->e != end), s.vars)
+    newState = fold(state.s, vmState([]), \acc, e-> {
+        // println(e);
+        s = execLine(body[e.first], e.second);
+        vmState(filter(concat(acc.s, s.s), \ee->ee.first != end))
     });
-    if (length(newState.l) > 0 && cur < limit) {
+    if (length(newState.s) > 0 && cur < limit) {
         _exec(body, newState, cur + 1, limit);
     } else {
-        if (length(newState.l) > 0 && cur >= limit)
+        if (length(newState.s) > 0 && cur >= limit)
             println("Nemo virtual machine stopped execution. Iterations limit exceeded.")
         else 
             println("Nemo virtual machine finished execution.")
@@ -83,11 +96,15 @@ _exec(body: [vmLine], state: vmState, cur: int, limit: int) -> void {
 
 execLine(line: vmLine, vars: Tree<string, vmVal>) -> vmState {
     switch (line.instruction) {
-        vmAssign(v,e): vmState(line.goto, setTree(vars, v.val, eval(e, vars)));
-        vmTest(b): if (cmp(b, vars)) vmState(line.goto, vars) else vmState([], vars);
+        // vmAssign(v,e): vmState(line.goto, setTree(vars, v.val, eval(e, vars)));
+        vmAssign(v,e): {
+            t = setTree(vars, v.val, eval(e, vars));
+            mapState(line.goto, t);
+        }
+        vmTest(b): if (cmp(b, vars)) mapState(line.goto, vars) else vmState([]);
         vmPrint(e): {
             println(val2s(eval(e, vars)));
-            vmState(line.goto, vars);
+            mapState(line.goto, vars);
         }
     }
 }

@@ -9,18 +9,18 @@ var arr : [int];
 {   
     x:=0;
     {
-        {{
-            arr := upd(arr, x, x);
+        {
+            {arr := upd(arr, x, x);
             x := x + 1;
-            (x<10)?;
-        } U {
+            print(arr);
+            (x < 10)?;}
+        }* U  {
             x := 10;
-            print(x);
+            {{print(x);
             x := x - 1;
-            (x > 0)?;
-        }}
-    }*;
-    print(arr);
+            (x > 0)?;}}*;
+        }
+    };
 }
 ";
     nemo = s2ast(prog);
