@@ -8,24 +8,18 @@ var x : int;
 var arr : [int];
 {   
     x:=0;
-    {
-        {
-            {arr := upd(arr, x, x);
-            x := x + 1;
-            print(arr);
-            (x < 10)?;}
-        }* U  {
-            x := 10;
-            {{print(x);
-            x := x - 1;
-            (x > 0)?;}}*;
-        }
-    };
+    arr:=[1, [1]];
 }
 ";
-    nemo = s2ast(prog);
-    vm = nemo2nvm(nemo);
-    printvmProg(vm);
-    exec(vm);
+    nemo = typeSafe_s2ast(prog);
+    switch (nemo) {
+        Some(nm): {
+            vm = nemo2nvm(nm);
+            printvmProg(vm);
+            exec(vm);
+        };
+        None(): println("wrong syntax, assign error");
+    }
+
     quit(0);
 }
